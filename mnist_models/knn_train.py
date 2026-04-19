@@ -1,56 +1,107 @@
-from sklearn.datasets import fetch_openml
-from sklearn.model_selection import train_test_split
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    confusion_matrix,
-    classification_report
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader
+
+from evaluate import evaluate_model
+
+# Device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Transform
+transform = transforms.ToTensor()
+
+# Dataset
+train_dataset = datasets.MNIST(
+    root="./data",
+    train=True,
+    download=True,
+    transform=transform
 )
 
-# Load dataset
-mnist = fetch_openml("mnist_784", version=1)
-
-X = mnist.data
-y = mnist.target.astype(int)
-
-# Smaller subset because KNN is slow
-X = X[:10000]
-y = y[:10000]
-
-# Train test split
-X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.2,
-    random_state=42,
-    stratify=y
+test_dataset = datasets.MNIST(
+    root="./data",
+    train=False,
+    download=True,
+    transform=transform
 )
 
-# KNN model
-model = KNeighborsClassifier(n_neighbors=3)
+# DataLoader
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 
-# Train
-model.fit(X_train, y_train)
+# CNN Model
+class CNN(nn.Module):
+    def __init__(self):
+        super().__init__()
 
-# Predict
-y_pred = model.predict(X_test)
+        self.conv_layers = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2),
 
-# Metrics
-accuracy = accuracy_score(y_test, y_pred)
-precision = precision_score(y_test, y_pred, average="weighted")
-recall = recall_score(y_test, y_pred, average="weighted")
-f1 = f1_score(y_test, y_pred, average="weighted")
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2)
+        )
 
-print("Accuracy:", accuracy)
-print("Precision:", precision)
-print("Recall:", recall)
-print("F1 Score:", f1)
+        self.fc_layers = nn.Sequential(
+            nn.Linear(64 * 7 * 7, 128),
+            nn.ReLU(),
+            nn.Linear(128, 10)
+        )
 
-print("\nConfusion Matrix:")
-print(confusion_matrix(y_test, y_pred))
+    def forward(self, x):
+        x = self.conv_layers(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc_layers(x)
+        return x
 
-print("\nClassification Report:")
-print(classification_report(y_test, y_pred))
+model = CNN().to(device)
+
+# Loss and optimizer
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+# Training
+epochs = 5
+
+for epoch in range(epochs):
+    model.train()
+    running_loss = 0.0
+
+    for images, labels in train_loader:
+        images = images.to(device)
+        labels = labels.to(device)
+
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        running_loss += loss.item()
+
+    print(f"Epoch {epoch + 1}/{epochs}, Loss: {running_loss / len(train_loader):.4f}")
+
+# Evaluation
+model.eval()
+
+all_preds = []
+all_labels = []
+
+with torch.no_grad():
+    for images, labels in test_loader:
+        images = images.to(device)
+        labels = labels.to(device)
+
+        outputs = model(images)
+        _, preds = torch.max(outputs, 1)
+
+        all_preds.extend(preds.cpu().numpy())
+        all_labels.extend(labels.cpu().numpy())
+
+evaluate_model(all_labels, all_preds)

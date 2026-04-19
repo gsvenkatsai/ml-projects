@@ -5,6 +5,8 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 
+from evaluate import evaluate_model
+
 # Device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -83,4 +85,23 @@ for epoch in range(epochs):
 
         running_loss += loss.item()
 
-    print(f"Epoch {epoch+1}/{epochs}, Loss: {running_loss / len(train_loader):.4f}")
+    print(f"Epoch {epoch + 1}/{epochs}, Loss: {running_loss / len(train_loader):.4f}")
+
+# Evaluation
+model.eval()
+
+all_preds = []
+all_labels = []
+
+with torch.no_grad():
+    for images, labels in test_loader:
+        images = images.to(device)
+        labels = labels.to(device)
+
+        outputs = model(images)
+        _, preds = torch.max(outputs, 1)
+
+        all_preds.extend(preds.cpu().numpy())
+        all_labels.extend(labels.cpu().numpy())
+
+evaluate_model(all_labels, all_preds)
