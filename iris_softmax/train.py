@@ -40,8 +40,7 @@ X_test = torch.tensor(X_test, dtype=torch.float32)
 y_train = torch.tensor(y_train, dtype=torch.long)
 y_test = torch.tensor(y_test, dtype=torch.long)
 
-# Softmax classifier model
-class SoftmaxClassifier(nn.Module):
+class IrisModel(nn.Module):
     def __init__(self):
         super().__init__()
         self.linear = nn.Linear(4, 3)
@@ -49,7 +48,7 @@ class SoftmaxClassifier(nn.Module):
     def forward(self, x):
         return self.linear(x)
 
-model = SoftmaxClassifier()
+model = IrisModel()
 
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss()
