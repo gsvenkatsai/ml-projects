@@ -13,3 +13,5 @@ data/
 *.pkl
 
 .ipynb_checkpoints/
+
+*.pth

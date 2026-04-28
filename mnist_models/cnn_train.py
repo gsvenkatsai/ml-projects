@@ -105,3 +105,5 @@ with torch.no_grad():
         all_labels.extend(labels.cpu().numpy())
 
 evaluate_model(all_labels, all_preds)
+torch.save(model.state_dict(), "mnist_cnn.pth")
+print("Model saved.")
