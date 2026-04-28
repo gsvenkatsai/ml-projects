@@ -1,0 +1,8 @@
+version: "3.9"
+
+services:
+  mnist-api:
+    build: .
+    container_name: mnist-compose
+    ports:
+      - "5000:5000"
